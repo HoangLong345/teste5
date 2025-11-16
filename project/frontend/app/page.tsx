@@ -13,14 +13,33 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const socket = new WebSocket("ws://localhost:8080/ws");
+ useEffect(() => {
+    // 1. Lấy URL API từ biến môi trường (mà bạn đã setup trên Vercel)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    
+    // 2. Chuyển đổi URL HTTPS thành URL WSS (WebSocket Secure)
+    // Ví dụ: https://teste5-rero.onrender.com/ -> wss://teste5-rero.onrender.com/ws
+    let wsUrl = '';
+    if (API_URL) {
+      const url = new URL(API_URL);
+      // Sử dụng wss: nếu URL gốc là https: (bắt buộc khi deploy)
+      const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${wsProtocol}//${url.host}/ws`; // Thêm endpoint /ws của Go Backend
+    } else {
+        // Fallback cho môi trường Dev (hoặc nếu chưa set biến)
+        wsUrl = "ws://localhost:8080/ws";
+    }
+
+    if (!wsUrl) return; // Không kết nối nếu URL bị trống
+
+    const socket = new WebSocket(wsUrl);
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       setMessages((prev) => [...prev, msg]);
     };
     setWs(socket);
 
+    // Dọn dẹp kết nối khi component unmount
     return () => socket.close();
   }, []);
 
